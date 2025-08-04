@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://lettergaurdsystem.onrender.com/api/:path*"
+    },
+    {
+      "source": "/:any*",
+      "destination": "/"
+    }
+  ]
+}
