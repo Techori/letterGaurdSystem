@@ -19,6 +19,7 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:8080',
   'https://lettergaurdsystem.onrender.com',
+  'https://letter-gaurd-system.vercel.app'
 ];
 // Security middleware
 app.use(helmet());
