@@ -1,5 +1,5 @@
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? import.meta.env.VITE_API_BASE_URL || "https://learn2pay-production.up.railway.app"
+  ? import.meta.env.VITE_API_BASE_URL || "https://lettergaurdsystem.onrender.com/api"
   : 'http://localhost:5000/api';
 
   class ApiService {

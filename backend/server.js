@@ -15,12 +15,30 @@ const staffRoutes = require('./routes/staff');
 
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:5000',
+  'http://localhost:8080',
+  'https://lettergaurdsystem.onrender.com',
+];
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin:  function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const normalizedAllowedOrigins = allowedOrigins.map(o => o.replace(/\/$/, ''));
+    if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS not allowed for origin: ${origin}`), false);
+  },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
+    credentials: true, // Important: allows cookies to be sent
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+    optionsSuccessStatus: 200,
+  })
+);
 
 // Logger middleware (before rate limiting to log all requests)
 app.use(loggerMiddleware);
