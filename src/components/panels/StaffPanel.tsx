@@ -1,6 +1,6 @@
 
-import { AuthenticatedStaffPanel } from "./AuthenticatedStaffPanel";
+import StaffDashboard from "@/components/staff/StaffDashboard";
 
 export function StaffPanel({ onLogout }: { onLogout: () => void }) {
-  return <AuthenticatedStaffPanel onLogout={onLogout} />;
+  return <StaffDashboard onLogout={onLogout} />;
 }

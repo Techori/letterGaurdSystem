@@ -12,6 +12,7 @@ router.get('/', auth, async (req, res) => {
       .populate('categoryId', 'name prefix')
       .sort({ name: 1 });
     res.json(letterTypes);
+    console.log("letter types:",letterTypes)
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

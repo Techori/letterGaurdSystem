@@ -1,8 +1,7 @@
-// backend/scripts/seed.js
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 
 // Import models
 const User = require('../models/User');
@@ -10,320 +9,217 @@ const Category = require('../models/Category');
 const LetterType = require('../models/LetterType');
 const Document = require('../models/Document');
 
-// Mock data
-const seedData = {
-  users: [
-    {
-      name: 'System Admin',
-      email: 'admin@ripl.com',
-      password: 'admin123',
-      role: 'admin'
-    },
-    {
-      name: 'HR Manager',
-      email: 'hr@ripl.com',
-      password: 'hr1234',
-      role: 'staff'
-    },
-    {
-      name: 'Admin Officer',
-      email: 'officer@ripl.com',
-      password: 'officer123',
-      role: 'staff'
-    },
-    {
-      name: 'Staff Member',
-      email: 'staff@ripl.com',
-      password: 'staff123',
-      role: 'staff'
-    }
-  ],
-  
-  categories: [
-    {
-      name: 'Employment Letters',
-      prefix: 'EMP',
-      description: 'All employment related documents and letters'
-    },
-    {
-      name: 'Certificate',
-      prefix: 'CERT',
-      description: 'Various certificates issued by the organization'
-    },
-    {
-      name: 'Circulars and Management',
-      prefix: 'CIRC',
-      description: 'Management circulars and administrative documents'
-    },
-    {
-      name: 'Official Correspondence',
-      prefix: 'CORR',
-      description: 'Official correspondence and communications'
-    }
-  ],
-  
-  letterTypes: [
-    {
-      name: 'Offer Letter (Internship)',
-      description: 'Internship offer letters for candidates'
-    },
-    {
-      name: 'Offer Letter (PPO)',
-      description: 'Pre-placement offer letters'
-    },
-    {
-      name: 'Experience Certificate',
-      description: 'Work experience certificates'
-    },
-    {
-      name: 'Letter of agree to pay',
-      description: 'Financial agreement letters'
-    },
-    {
-      name: 'Completion Certificate',
-      description: 'Course or internship completion certificates'
-    }
-  ]
-};
-
-// Seeding functions
-async function clearDatabase() {
-  console.log('🗑️  Clearing existing data...');
-  await Document.deleteMany({});
-  await LetterType.deleteMany({});
-  await Category.deleteMany({});
-  await User.deleteMany({});
-  console.log('✅ Database cleared successfully');
-}
-
-async function seedUsers() {
-  console.log('👥 Seeding users...');
-  const users = [];
-  
-  for (const userData of seedData.users) {
-    const user = new User(userData);
-    await user.save();
-    users.push(user);
-    console.log(`   ✓ Created user: ${user.name} (${user.role})`);
+const seedUsers = [
+  {
+    name: 'Admin User',
+    email: 'admin@demo.com',
+    password: 'admin123',
+    role: 'admin',
+    isActive: true
+  },
+  {
+    name: 'Staff User',
+    email: 'staff@demo.com',
+    password: 'staff123',
+    role: 'staff',
+    isActive: true
+  },
+  {
+    name: 'John Doe',
+    email: 'john@demo.com',
+    password: 'john123',
+    role: 'staff',
+    isActive: true
   }
-  
-  return users;
-}
+];
 
-async function seedCategories() {
-  console.log('📁 Seeding categories...');
-  const categories = [];
-  
-  for (const categoryData of seedData.categories) {
-    const category = new Category(categoryData);
-    await category.save();
-    categories.push(category);
-    console.log(`   ✓ Created category: ${category.name}`);
+const seedCategories = [
+  {
+    name: 'Official Letters',
+    prefix: 'OFF',
+    description: 'Official government correspondence'
+  },
+  {
+    name: 'Circulars',
+    prefix: 'CIR',
+    description: 'Policy and procedural circulars'
+  },
+  {
+    name: 'Certificates',
+    prefix: 'CERT',
+    description: 'Various types of certificates'
+  },
+  {
+    name: 'Notifications',
+    prefix: 'NOT',
+    description: 'Public notifications and announcements'
   }
-  
-  return categories;
-}
+];
 
-async function seedLetterTypes(categories) {
-  console.log('📄 Seeding letter types...');
-  const letterTypes = [];
-  
-  // Map letter types to categories
-  const letterTypeMapping = [
-    { typeIndex: 0, categoryIndex: 0 }, // Offer Letter (Internship) -> Employment Letters
-    { typeIndex: 1, categoryIndex: 0 }, // Offer Letter (PPO) -> Employment Letters
-    { typeIndex: 2, categoryIndex: 1 }, // Experience Certificate -> Certificate
-    { typeIndex: 3, categoryIndex: 2 }, // Letter of agree to pay -> Circulars and Management
-    { typeIndex: 4, categoryIndex: 1 }, // Completion Certificate -> Certificate
-  ];
-  
-  for (const mapping of letterTypeMapping) {
-    const letterTypeData = {
-      ...seedData.letterTypes[mapping.typeIndex],
-      categoryId: categories[mapping.categoryIndex]._id
-    };
-    
-    const letterType = new LetterType(letterTypeData);
-    await letterType.save();
-    letterTypes.push(letterType);
-    console.log(`   ✓ Created letter type: ${letterType.name}`);
+const seedLetterTypes = [
+  { name: 'Appointment Letter', categoryName: 'Official Letters' },
+  { name: 'Transfer Order', categoryName: 'Official Letters' },
+  { name: 'Leave Sanction', categoryName: 'Official Letters' },
+  { name: 'Policy Circular', categoryName: 'Circulars' },
+  { name: 'Administrative Circular', categoryName: 'Circulars' },
+  { name: 'Experience Certificate', categoryName: 'Certificates' },
+  { name: 'Service Certificate', categoryName: 'Certificates' },
+  { name: 'Public Notice', categoryName: 'Notifications' },
+  { name: 'Tender Notice', categoryName: 'Notifications' }
+];
+
+const seedDocuments = [
+  {
+    title: 'New Employee Appointment - Software Developer',
+    content: 'This is to inform that Mr. John Smith has been appointed as Software Developer in our organization with effect from January 1, 2024.',
+    letterNumber: 'OFF/2024/001',
+    referenceNumber: 'REF/OFF/012024/01',
+    issueDate: '2024-01-01',
+    status: 'Approved',
+    categoryName: 'Official Letters',
+    letterTypeName: 'Appointment Letter'
+  },
+  {
+    title: 'Transfer Order - Administrative Staff',
+    content: 'Ms. Jane Doe, Administrative Assistant, is hereby transferred from Head Office to Branch Office with immediate effect.',
+    letterNumber: 'OFF/2024/002',
+    referenceNumber: 'REF/OFF/012024/02',
+    issueDate: '2024-01-15',
+    status: 'Pending',
+    categoryName: 'Official Letters',
+    letterTypeName: 'Transfer Order'
+  },
+  {
+    title: 'New IT Security Policy',
+    content: 'All employees are required to follow the new IT security guidelines outlined in this circular.',
+    letterNumber: 'CIR/2024/001',
+    referenceNumber: 'REF/CIR/012024/01',
+    issueDate: '2024-01-20',
+    status: 'Draft',
+    categoryName: 'Circulars',
+    letterTypeName: 'Policy Circular'
   }
-  
-  return letterTypes;
-}
+];
 
-async function seedDocuments(users, categories, letterTypes) {
-  console.log('📋 Seeding documents...');
-  
-  const staffUsers = users.filter(user => user.role === 'staff');
-  const adminUser = users.find(user => user.role === 'admin');
-  
-  const documents = [
-    {
-      title: 'Internship Offer Letter - Anuj Jain',
-      categoryId: categories[0]._id, // Employment Letters
-      letterTypeId: letterTypes[0]._id, // Offer Letter (Internship)
-      letterNumber: 'RIPL/2025-26/04',
-      referenceNumber: 'OTAL/2025-26/03',
-      issueDate: new Date('2025-04-13'),
-      content: 'Dear Anuj Jain,\n\nWe are pleased to offer you an internship position at our organization...',
-      status: 'Approved',
-      createdBy: staffUsers[0]._id,
-      approvedBy: adminUser._id,
-      approvedAt: new Date('2025-04-14')
-    },
-    {
-      title: 'Internship Offer Letter - Raj Shivhare',
-      categoryId: categories[0]._id, // Employment Letters
-      letterTypeId: letterTypes[0]._id, // Offer Letter (Internship)
-      letterNumber: 'RIPL/2025-26/05',
-      referenceNumber: 'OTAL/2025-26/04',
-      issueDate: new Date('2025-04-13'),
-      content: 'Dear Raj Shivhare,\n\nWe are pleased to offer you an internship position at our organization...',
-      status: 'Approved',
-      createdBy: staffUsers[0]._id,
-      approvedBy: adminUser._id,
-      approvedAt: new Date('2025-04-14')
-    },
-    {
-      title: 'PPO Letter - Raj Shivhare',
-      categoryId: categories[0]._id, // Employment Letters
-      letterTypeId: letterTypes[1]._id, // Offer Letter (PPO)
-      letterNumber: 'RIPL/2025-26/72',
-      referenceNumber: 'OTAL/2025-26/70',
-      issueDate: new Date('2025-07-03'),
-      content: 'Dear Raj Shivhare,\n\nWe are pleased to extend a Pre-Placement Offer...',
-      status: 'Approved',
-      createdBy: staffUsers[0]._id,
-      approvedBy: adminUser._id,
-      approvedAt: new Date('2025-07-04')
-    },
-    {
-      title: 'Internship Completion Certificate - Raj Shivhare',
-      categoryId: categories[1]._id, // Certificate
-      letterTypeId: letterTypes[4]._id, // Completion Certificate
-      letterNumber: 'RIPL/2025-26/104',
-      referenceNumber: 'CRTF/2025-26/16',
-      issueDate: new Date('2025-07-30'),
-      content: 'This certificate confirms the successful completion of internship program in our IT department.',
-      status: 'Approved',
-      createdBy: staffUsers[1]._id,
-      approvedBy: adminUser._id,
-      approvedAt: new Date('2025-07-30')
-    },
-    {
-      title: 'Internship Completion Certificate - Nisha',
-      categoryId: categories[1]._id, // Certificate
-      letterTypeId: letterTypes[4]._id, // Completion Certificate
-      letterNumber: 'RIPL/2025-26/116',
-      referenceNumber: 'CRTF/2025-26/28',
-      issueDate: new Date('2025-07-30'),
-      content: 'This certificate confirms the completion of the internship program in the IT Department as of July 31, 2025. However, the intern\'s behavior towards seniors has been unsatisfactory, work performance was slow, and connectivity with seniors was lacking, with no communication for the past 20 days.',
-      status: 'Approved',
-      createdBy: staffUsers[1]._id,
-      approvedBy: adminUser._id,
-      approvedAt: new Date('2025-07-30')
-    },
-    {
-      title: 'Draft Letter - Test Document',
-      categoryId: categories[2]._id, // Circulars and Management
-      letterTypeId: letterTypes[3]._id, // Letter of agree to pay
-      letterNumber: 'RIPL/2025-26/117',
-      referenceNumber: 'DRAFT/2025-26/01',
-      issueDate: new Date('2025-08-01'),
-      content: 'This is a draft document for testing purposes...',
-      status: 'Draft',
-      createdBy: staffUsers[2]._id
-    },
-    {
-      title: 'Pending Review Document',
-      categoryId: categories[0]._id, // Employment Letters
-      letterTypeId: letterTypes[2]._id, // Experience Certificate
-      letterNumber: 'RIPL/2025-26/118',
-      referenceNumber: 'PEND/2025-26/01',
-      issueDate: new Date('2025-08-02'),
-      content: 'This document is pending review...',
-      status: 'Pending',
-      createdBy: staffUsers[2]._id
-    }
-  ];
-  
-  for (const docData of documents) {
-    const document = new Document(docData);
-    await document.save();
-    console.log(`   ✓ Created document: ${document.title} (${document.status})`);
-  }
-  
-  return documents;
-}
-
-// Main seeding function
-async function seedDatabase(clearExisting = false) {
+async function seedDatabase() {
   try {
-    console.log('🌱 Starting database seeding...\n');
-    
-    // Connect to MongoDB
-    console.log('🔌 Connecting to MongoDB...');
+    console.log('Connecting to MongoDB...');
     await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('✅ Connected to MongoDB\n');
-    
-    // Clear existing data if requested
-    if (clearExisting) {
-      await clearDatabase();
-      console.log('');
+    console.log('Connected to MongoDB');
+
+    // Clear existing data if --clear flag is passed
+    if (process.argv.includes('--clear')) {
+      console.log('Clearing existing data...');
+      await Promise.all([
+        User.deleteMany({}),
+        Category.deleteMany({}),
+        LetterType.deleteMany({}),
+        Document.deleteMany({})
+      ]);
+      console.log('Existing data cleared');
     }
-    
-    // Seed data
-    const users = await seedUsers();
-    console.log('');
-    
-    const categories = await seedCategories();
-    console.log('');
-    
-    const letterTypes = await seedLetterTypes(categories);
-    console.log('');
-    
-    const documents = await seedDocuments(users, categories, letterTypes);
-    console.log('');
-    
-    console.log('🎉 Database seeding completed successfully!');
-    console.log('\n📊 Summary:');
-    console.log(`   👥 Users: ${users.length}`);
-    console.log(`   📁 Categories: ${categories.length}`);
-    console.log(`   📄 Letter Types: ${letterTypes.length}`);
-    console.log(`   📋 Documents: ${documents.length}`);
-    
-    console.log('\n🔐 Login Credentials:');
-    console.log('   Admin: admin@ripl.com / admin123');
-    console.log('   HR Staff: hr@ripl.com / hr123');
-    console.log('   Officer: officer@ripl.com / officer123');
-    console.log('   Staff: staff@ripl.com / staff123');
+
+    // Seed Users
+    console.log('Seeding users...');
+    const users = [];
+    for (const userData of seedUsers) {
+      const existingUser = await User.findOne({ email: userData.email });
+      if (!existingUser) {
+        const user = new User(userData);
+        await user.save();
+        users.push(user);
+        console.log(`Created user: ${userData.email}`);
+      } else {
+        users.push(existingUser);
+        console.log(`User already exists: ${userData.email}`);
+      }
+    }
+
+    // Seed Categories
+    console.log('Seeding categories...');
+    const categories = [];
+    for (const categoryData of seedCategories) {
+      const existingCategory = await Category.findOne({ name: categoryData.name });
+      if (!existingCategory) {
+        const category = new Category(categoryData);
+        await category.save();
+        categories.push(category);
+        console.log(`Created category: ${categoryData.name}`);
+      } else {
+        categories.push(existingCategory);
+        console.log(`Category already exists: ${categoryData.name}`);
+      }
+    }
+
+    // Seed Letter Types
+    console.log('Seeding letter types...');
+    const letterTypes = [];
+    for (const letterTypeData of seedLetterTypes) {
+      const category = categories.find(cat => cat.name === letterTypeData.categoryName);
+      if (category) {
+        const existingLetterType = await LetterType.findOne({ 
+          name: letterTypeData.name, 
+          category_id: category._id 
+        });
+        if (!existingLetterType) {
+          const letterType = new LetterType({
+            name: letterTypeData.name,
+            category_id: category._id
+          });
+          await letterType.save();
+          letterTypes.push(letterType);
+          console.log(`Created letter type: ${letterTypeData.name}`);
+        } else {
+          letterTypes.push(existingLetterType);
+          console.log(`Letter type already exists: ${letterTypeData.name}`);
+        }
+      }
+    }
+
+    // Seed Documents
+    console.log('Seeding documents...');
+    const staffUser = users.find(user => user.role === 'staff');
+    for (const docData of seedDocuments) {
+      const category = categories.find(cat => cat.name === docData.categoryName);
+      const letterType = letterTypes.find(lt => lt.name === docData.letterTypeName);
+      
+      if (category && letterType && staffUser) {
+        const existingDoc = await Document.findOne({ letter_number: docData.letterNumber });
+        if (!existingDoc) {
+          const document = new Document({
+            title: docData.title,
+            content: docData.content,
+            category_id: category._id,
+            letter_type_id: letterType._id,
+            letter_number: docData.letterNumber,
+            reference_number: docData.referenceNumber,
+            issue_date: new Date(docData.issueDate),
+            status: docData.status,
+            created_by: staffUser._id
+          });
+          await document.save();
+          console.log(`Created document: ${docData.title}`);
+        } else {
+          console.log(`Document already exists: ${docData.title}`);
+        }
+      }
+    }
+
+    console.log('\n✅ Database seeded successfully!');
+    console.log('\n📧 Demo Login Credentials:');
+    console.log('Admin: admin@demo.com / admin123');
+    console.log('Staff: staff@demo.com / staff123');
     
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
-    throw error;
+    console.error('❌ Seeding failed:', error);
   } finally {
-    // Close connection
     await mongoose.connection.close();
-    console.log('\n🔌 MongoDB connection closed');
+    console.log('Database connection closed');
+    process.exit(0);
   }
 }
 
-// Run seeder
-if (require.main === module) {
-  const clearExisting = process.argv.includes('--clear');
-  seedDatabase(clearExisting)
-    .then(() => {
-      console.log('✅ Seeding process completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Seeding failed:', error);
-      process.exit(1);
-    });
-}
-
-module.exports = { seedDatabase };
+seedDatabase();

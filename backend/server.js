@@ -21,25 +21,30 @@ const allowedOrigins = [
   'https://lettergaurdsystem.onrender.com',
   'https://letter-gaurd-system.vercel.app'
 ];
+
 // Security middleware
 app.use(helmet());
 app.use(
   cors({
-    origin:  function (origin, callback) {
-    if (!origin) return callback(null, true);
-    const normalizedOrigin = origin.replace(/\/$/, '');
-    const normalizedAllowedOrigins = allowedOrigins.map(o => o.replace(/\/$/, ''));
-    if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
-      return callback(null, true);
-    }
-    return callback(new Error(`CORS not allowed for origin: ${origin}`), false);
-  },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
-    credentials: true, // Important: allows cookies to be sent
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      const normalizedAllowedOrigins = allowedOrigins.map(o => o.replace(/\/$/, ''));
+      if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS not allowed for origin: ${origin}`), false);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
     optionsSuccessStatus: 200,
   })
 );
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 // Logger middleware (before rate limiting to log all requests)
 app.use(loggerMiddleware);
@@ -47,21 +52,17 @@ app.use(loggerMiddleware);
 // Rate limiting
 // const limiter = rateLimit({
 //   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100 // limit each IP to 100 requests per windowMs
+//   max: 1000 // limit each IP to 100 requests per windowMs
 // });
 // app.use('/api/', limiter);
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('Connected to MongoDB Atlas'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => console.log('✅ Connected to MongoDB Atlas'))
+.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -77,12 +78,11 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.log(req);
-  console.error(err.stack);
+  console.error('❌ Server Error:', err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

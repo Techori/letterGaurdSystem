@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,38 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FileText, Plus, Calendar, User, Building, Hash, Clock, LogOut, Send, Save, RefreshCw, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { googleSheetsService } from '@/services/googleSheetsService';
-import { Category, LetterType, Document } from '@/types';
+import { apiService } from '@/services/apiService';
+
+interface Category {
+  _id: string;
+  name: string;
+  prefix: string;
+  description?: string;
+  isActive: boolean;
+}
+
+interface LetterType {
+  _id: string;
+  name: string;
+  categoryId: string;
+  description?: string;
+  isActive: boolean;
+}
+
+interface Document {
+  _id?: string;
+  title: string;
+  categoryId: string;
+  letterTypeId: string;
+  letterNumber: string;
+  referenceNumber: string;
+  issueDate: string;
+  content: string;
+  status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -27,43 +58,56 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [issueDate, setIssueDate] = useState('');
   const [content, setContent] = useState('');
-  const [status, setStatus] = useState<'Draft' | 'Pending' | 'Approved' | 'Rejected'>('Draft');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load data from Google Sheets
+  // Load data from API
   useEffect(() => {
-    loadSheetData();
+    loadData();
+    loadLetterTypes();
   }, []);
 
-  const loadSheetData = async () => {
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      const data = await googleSheetsService.fetchSheetData();
-      setCategories(data.categories);
-      setLetterTypes(data.letterTypes);
-      setDocuments(data.documents);
-      toast.success('Data loaded from Google Sheets');
+      
+      const [documentsData, categoriesData] = await Promise.all([
+        apiService.getDocuments(),
+        apiService.getCategories(), 
+      ]);
+
+      setDocuments(documentsData);
+      setCategories(categoriesData);
+  
+      toast.success('Data loaded successfully');
     } catch (error) {
-      toast.error('Failed to load data from Google Sheets');
-      console.error(error);
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const syncWithSheets = async () => {
+   const loadLetterTypes = async () => {
     try {
-      await googleSheetsService.updateSheetData({
-        documents
-      });
-      toast.success('Document synced with Google Sheets');
+      setIsLoading(true);
+      
+      const letterTypesData= await apiService.getLetterTypes();
+
+      console.log(letterTypes)
+      setLetterTypes(letterTypesData);
+      console.log("letter types:",letterTypes)
+  
+      toast.success('letter types loaded successfully');
     } catch (error) {
-      toast.error('Failed to sync with Google Sheets');
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  
   const generateLetterNumber = () => {
-    const category = categories.find(cat => cat.id === categoryId);
+    const category = categories.find(cat => cat._id === categoryId);
     if (category) {
       const year = new Date().getFullYear();
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -73,7 +117,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
   };
 
   const generateReferenceNumber = () => {
-    const category = categories.find(cat => cat.id === categoryId);
+    const category = categories.find(cat => cat._id === categoryId);
     if (category) {
       const date = new Date();
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -84,45 +128,69 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
     return '';
   };
 
-  const handleSubmit = async (submitStatus: 'Draft' | 'Pending' = 'Draft') => {
-    if (!title || !categoryId || !letterTypeId || !content) {
-      toast.error('Please fill in all required fields');
-      return;
+  const validateForm = () => {
+    if (!title.trim()) {
+      toast.error('Document title is required');
+      return false;
     }
+    if (!categoryId) {
+      toast.error('Category is required');
+      return false;
+    }
+    if (!letterTypeId) {
+      toast.error('Letter type is required');
+      return false;
+    }
+    if (!content.trim()) {
+      toast.error('Document content is required');
+      return false;
+    }
+    if (!issueDate) {
+      toast.error('Issue date is required');
+      return false;
+    }
+    return true;
+  };
 
-    const finalLetterNumber = letterNumber || generateLetterNumber();
-    const finalReferenceNumber = referenceNumber || generateReferenceNumber();
+  const handleSubmit = async (submitStatus: 'Draft' | 'Pending' = 'Draft') => {
+    if (!validateForm()) return;
 
-    const newDocument: Document = {
-      id: String(documents.length + 1),
-      title,
-      category_id: categoryId,
-      letter_type_id: letterTypeId,
-      letter_number: finalLetterNumber,
-      reference_number: finalReferenceNumber,
-      issue_date: issueDate || new Date().toISOString().split('T')[0],
-      content,
-      status: submitStatus,
-      created_by: 'staff-user',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    setIsSubmitting(true);
 
-    const updatedDocuments = [...documents, newDocument];
-    setDocuments(updatedDocuments);
-    
-    await syncWithSheets();
-    toast.success(`Document ${submitStatus === 'Draft' ? 'saved as draft' : 'submitted for approval'}!`);
-    
-    // Reset form
-    setTitle('');
-    setCategoryId('');
-    setLetterTypeId('');
-    setLetterNumber('');
-    setReferenceNumber('');
-    setIssueDate('');
-    setContent('');
-    setStatus('Draft');
+    try {
+      const finalLetterNumber = letterNumber || generateLetterNumber();
+      const finalReferenceNumber = referenceNumber || generateReferenceNumber();
+
+      const documentData = {
+        title: title.trim(),
+        categoryId,
+        letterTypeId,
+        letterNumber: finalLetterNumber,
+        referenceNumber: finalReferenceNumber,
+        issueDate,
+        content: content.trim(),
+        status: submitStatus,
+      };
+
+      const newDocument = await apiService.createDocument(documentData);
+      setDocuments([newDocument, ...documents]);
+      
+      toast.success(`Document ${submitStatus === 'Draft' ? 'saved as draft' : 'submitted for approval'}!`);
+      
+      // Reset form
+      setTitle('');
+      setCategoryId('');
+      setLetterTypeId('');
+      setLetterNumber('');
+      setReferenceNumber('');
+      setIssueDate('');
+      setContent('');
+    } catch (error: any) {
+      console.error('Error creating document:', error);
+      toast.error(error.message || 'Failed to create document');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -139,7 +207,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center space-x-2">
           <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-          <span className="text-lg">Loading data from Google Sheets...</span>
+          <span className="text-lg">Loading data...</span>
         </div>
       </div>
     );
@@ -157,11 +225,11 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Staff Dashboard</h1>
-                <p className="text-muted-foreground">Create and manage documents with Google Sheets integration</p>
+                <p className="text-muted-foreground">Create and manage documents</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Button onClick={loadSheetData} variant="outline" size="icon">
+              <Button onClick={loadData} variant="outline" size="icon">
                 <RefreshCw className="w-4 h-4" />
               </Button>
               <ThemeToggle />
@@ -174,8 +242,6 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
         </div>
       </div>
 
-      
-      
       <div className="container mx-auto px-6 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -228,8 +294,6 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
           </Card>
         </div>
 
-        
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Document Creation Form */}
           <div className="lg:col-span-2">
@@ -238,9 +302,6 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Plus className="w-5 h-5 text-primary" />
                   Create New Document
-                  <Badge className="ml-auto bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                    Google Sheets Connected
-                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
@@ -255,6 +316,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Enter document title"
                     className="h-11 bg-background"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -264,13 +326,13 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     <Label className="text-sm font-semibold text-foreground">
                       Category *
                     </Label>
-                    <Select onValueChange={setCategoryId} value={categoryId}>
+                    <Select onValueChange={setCategoryId} value={categoryId} disabled={isSubmitting}>
                       <SelectTrigger className="h-11 bg-background">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
+                          <SelectItem key={category._id} value={category._id}>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">{category.prefix}</Badge>
                               {category.name}
@@ -285,13 +347,13 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     <Label className="text-sm font-semibold text-foreground">
                       Letter Type *
                     </Label>
-                    <Select onValueChange={setLetterTypeId} value={letterTypeId}>
+                    <Select onValueChange={setLetterTypeId} value={letterTypeId} disabled={isSubmitting}>
                       <SelectTrigger className="h-11 bg-background">
                         <SelectValue placeholder="Select letter type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {letterTypes.filter(type => type.category_id === categoryId).map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
+                        {letterTypes.filter(type => type.categoryId === categoryId).map((type) => (
+                          <SelectItem key={type._id} value={type._id}>
                             {type.name}
                           </SelectItem>
                         ))}
@@ -311,6 +373,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                       onChange={(e) => setLetterNumber(e.target.value)}
                       placeholder="Auto-generated"
                       className="h-11 bg-background"
+                      disabled={isSubmitting}
                     />
                     <p className="text-xs text-muted-foreground">Leave empty for auto-generation</p>
                   </div>
@@ -324,6 +387,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                       onChange={(e) => setReferenceNumber(e.target.value)}
                       placeholder="Auto-generated"
                       className="h-11 bg-background"
+                      disabled={isSubmitting}
                     />
                     <p className="text-xs text-muted-foreground">Leave empty for auto-generation</p>
                   </div>
@@ -337,6 +401,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                       value={issueDate}
                       onChange={(e) => setIssueDate(e.target.value)}
                       className="h-11 bg-background"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -351,6 +416,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Enter document content..."
                     className="min-h-32 resize-none bg-background"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -360,6 +426,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     onClick={() => handleSubmit('Draft')} 
                     variant="outline" 
                     className="flex-1 h-11"
+                    disabled={isSubmitting}
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save as Draft
@@ -367,9 +434,19 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   <Button 
                     onClick={() => handleSubmit('Pending')} 
                     className="flex-1 h-11 bg-primary hover:bg-primary/90"
+                    disabled={isSubmitting}
                   >
-                    <Send className="w-4 h-4 mr-2" />
-                    Submit for Approval
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Submit for Approval
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -384,15 +461,15 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="max-h-96 overflow-y-auto">
-                  {documents.slice(-5).reverse().map((doc) => (
-                    <div key={doc.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                  {documents.slice(0, 5).map((doc) => (
+                    <div key={doc._id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm truncate text-foreground">{doc.title}</h4>
                         <div className="flex items-center justify-between">
                           <Badge className={`text-xs ${getStatusColor(doc.status)}`}>
                             {doc.status}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">{doc.issue_date}</span>
+                          <span className="text-xs text-muted-foreground">{doc.issueDate}</span>
                         </div>
                         <p className="text-xs text-muted-foreground truncate">{doc.content}</p>
                       </div>
@@ -438,15 +515,15 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   </TableHeader>
                   <TableBody>
                     {documents.map((doc) => (
-                      <TableRow key={doc.id} className="hover:bg-muted/30">
+                      <TableRow key={doc._id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">{doc.title}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="font-mono">{doc.letter_number}</Badge>
+                          <Badge variant="outline" className="font-mono">{doc.letterNumber}</Badge>
                         </TableCell>
                         <TableCell>
-                          {categories.find(cat => cat.id === doc.category_id)?.name || 'N/A'}
+                          {categories.find(cat => cat._id === doc.categoryId)?.name || 'N/A'}
                         </TableCell>
-                        <TableCell>{doc.issue_date}</TableCell>
+                        <TableCell>{doc.issueDate}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(doc.status)}>
                             {doc.status}

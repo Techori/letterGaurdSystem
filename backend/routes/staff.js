@@ -6,7 +6,7 @@ const { auth, adminAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // Get all staff (admin only)
-router.get('/', auth, adminAuth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const staff = await User.find({ role: 'staff' })
       .select('-password')

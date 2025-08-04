@@ -1,6 +1,6 @@
 
-import { AuthenticatedAdminPanel } from "./AuthenticatedAdminPanel";
+import EnhancedAdminPanel from "@/components/admin/EnhancedAdminPanel";
 
 export function AdminPanel({ onLogout }: { onLogout: () => void }) {
-  return <AuthenticatedAdminPanel onLogout={onLogout} />;
+  return <EnhancedAdminPanel onLogout={onLogout} />;
 }

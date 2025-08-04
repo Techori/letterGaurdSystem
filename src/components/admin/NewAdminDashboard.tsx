@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,16 +16,17 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { mockDataService, CategoryData, StaffData, LetterTypeData, DocumentData } from '@/services/mockDataService';
+import { apiService } from '@/services/apiService';
+import { Category, Staff, LetterType, Document } from '@/types';
 
 const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [categories, setCategories] = useState<CategoryData[]>([]);
-  const [staff, setStaff] = useState<StaffData[]>([]);
-  const [letterTypes, setLetterTypes] = useState<LetterTypeData[]>([]);
-  const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [letterTypes, setLetterTypes] = useState<LetterType[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
 
-  // Load data from mock service
+  // Load data from API
   useEffect(() => {
     loadData();
   }, []);
@@ -32,16 +34,17 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [docsData, catsData, staffData, typesData] = await Promise.all([
-        mockDataService.getDocuments(),
-        mockDataService.getCategories(),
-        mockDataService.getStaff(),
-        mockDataService.getLetterTypes()
+      const [categoriesData, staffData, letterTypesData, documentsData] = await Promise.all([
+        apiService.getCategories(),
+        apiService.getStaff(),
+        apiService.getLetterTypes(),
+        apiService.getDocuments()
       ]);
-      setDocuments(docsData);
-      setCategories(catsData);
+      
+      setCategories(categoriesData);
       setStaff(staffData);
-      setLetterTypes(typesData);
+      setLetterTypes(letterTypesData);
+      setDocuments(documentsData);
       toast.success('Data loaded successfully');
     } catch (error) {
       toast.error('Failed to load data');
@@ -52,12 +55,12 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   };
 
   // Form states
-  const [newCategory, setNewCategory] = useState({ name: '', prefix: '' });
+  const [newCategory, setNewCategory] = useState({ name: '', prefix: '', description: '' });
   const [newStaff, setNewStaff] = useState({ name: '', email: '', role: '' });
-  const [newLetterType, setNewLetterType] = useState({ name: '', category_id: '' });
-  const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null);
-  const [editingStaff, setEditingStaff] = useState<StaffData | null>(null);
-  const [editingLetterType, setEditingLetterType] = useState<LetterTypeData | null>(null);
+  const [newLetterType, setNewLetterType] = useState({ name: '', categoryId: '', description: '' });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [editingLetterType, setEditingLetterType] = useState<LetterType | null>(null);
 
   // Category Management
   const handleAddCategory = async () => {
@@ -66,31 +69,51 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       return;
     }
     
-    const category: CategoryData = {
-      id: Date.now().toString(),
-      name: newCategory.name,
-      prefix: newCategory.prefix.toUpperCase(),
-      created_at: new Date().toISOString()
-    };
-    
-    setCategories([...categories, category]);
-    setNewCategory({ name: '', prefix: '' });
-    toast.success('Category added successfully');
+    try {
+      const category = await apiService.createCategory({
+        name: newCategory.name,
+        prefix: newCategory.prefix.toUpperCase(),
+        description: newCategory.description,
+        isActive: true
+      });
+      
+      setCategories([...categories, category]);
+      setNewCategory({ name: '', prefix: '', description: '' });
+      toast.success('Category added successfully');
+    } catch (error) {
+      toast.error('Failed to add category');
+    }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    setCategories(categories.filter(cat => cat.id !== id));
-    toast.success('Category deleted successfully');
+  const handleDeleteCategory = async (_id: string) => {
+    try {
+      await apiService.deleteCategory(_id);
+      setCategories(categories.filter(cat => cat._id !== _id));
+      toast.success('Category deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete category');
+    }
   };
 
   const handleUpdateCategory = async () => {
     if (!editingCategory) return;
     
-    setCategories(categories.map(cat => 
-      cat.id === editingCategory.id ? editingCategory : cat
-    ));
-    setEditingCategory(null);
-    toast.success('Category updated successfully');
+    try {
+      const updatedCategory = await apiService.updateCategory(editingCategory._id, {
+        name: editingCategory.name,
+        prefix: editingCategory.prefix,
+        description: editingCategory.description,
+        isActive: editingCategory.isActive
+      });
+      
+      setCategories(categories.map(cat => 
+        cat._id === editingCategory._id ? updatedCategory : cat
+      ));
+      setEditingCategory(null);
+      toast.success('Category updated successfully');
+    } catch (error) {
+      toast.error('Failed to update category');
+    }
   };
 
   // Staff Management
@@ -100,83 +123,128 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       return;
     }
     
-    const staffMember: StaffData = {
-      id: Date.now().toString(),
-      name: newStaff.name,
-      email: newStaff.email,
-      role: newStaff.role,
-      created_at: new Date().toISOString()
-    };
-    
-    setStaff([...staff, staffMember]);
-    setNewStaff({ name: '', email: '', role: '' });
-    toast.success('Staff member added successfully');
+    try {
+      const staffMember = await apiService.createStaff({
+        name: newStaff.name,
+        email: newStaff.email,
+        role: newStaff.role
+      });
+      
+      setStaff([...staff, staffMember]);
+      setNewStaff({ name: '', email: '', role: '' });
+      toast.success('Staff member added successfully');
+    } catch (error) {
+      toast.error('Failed to add staff member');
+    }
   };
 
-  const handleDeleteStaff = async (id: string) => {
-    setStaff(staff.filter(member => member.id !== id));
-    toast.success('Staff member deleted successfully');
+  const handleDeleteStaff = async (_id: string) => {
+    try {
+      await apiService.deleteStaff(_id);
+      setStaff(staff.filter(member => member._id !== _id));
+      toast.success('Staff member deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete staff member');
+    }
   };
 
   const handleUpdateStaff = async () => {
     if (!editingStaff) return;
     
-    setStaff(staff.map(member => 
-      member.id === editingStaff.id ? editingStaff : member
-    ));
-    setEditingStaff(null);
-    toast.success('Staff member updated successfully');
+    try {
+      const updatedStaff = await apiService.updateStaff(editingStaff._id, {
+        name: editingStaff.name,
+        email: editingStaff.email,
+        role: editingStaff.role
+      });
+      
+      setStaff(staff.map(member => 
+        member._id === editingStaff._id ? updatedStaff : member
+      ));
+      setEditingStaff(null);
+      toast.success('Staff member updated successfully');
+    } catch (error) {
+      toast.error('Failed to update staff member');
+    }
   };
 
   // Letter Type Management
   const handleAddLetterType = async () => {
-    if (!newLetterType.name || !newLetterType.category_id) {
+    if (!newLetterType.name || !newLetterType.categoryId) {
       toast.error('Please fill in all fields');
       return;
     }
     
-    const letterType: LetterTypeData = {
-      id: Date.now().toString(),
-      name: newLetterType.name,
-      category_id: newLetterType.category_id,
-      created_at: new Date().toISOString()
-    };
-    
-    setLetterTypes([...letterTypes, letterType]);
-    setNewLetterType({ name: '', category_id: '' });
-    toast.success('Letter type added successfully');
+    try {
+      const letterType = await apiService.createLetterType({
+        name: newLetterType.name,
+        categoryId: newLetterType.categoryId,
+        description: newLetterType.description,
+        isActive: true
+      });
+      
+      setLetterTypes([...letterTypes, letterType]);
+      setNewLetterType({ name: '', categoryId: '', description: '' });
+      toast.success('Letter type added successfully');
+    } catch (error) {
+      toast.error('Failed to add letter type');
+    }
   };
 
-  const handleDeleteLetterType = async (id: string) => {
-    setLetterTypes(letterTypes.filter(type => type.id !== id));
-    toast.success('Letter type deleted successfully');
+  const handleDeleteLetterType = async (_id: string) => {
+    try {
+      await apiService.deleteLetterType(_id);
+      setLetterTypes(letterTypes.filter(type => type._id !== _id));
+      toast.success('Letter type deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete letter type');
+    }
   };
 
   const handleUpdateLetterType = async () => {
     if (!editingLetterType) return;
     
-    setLetterTypes(letterTypes.map(type => 
-      type.id === editingLetterType.id ? editingLetterType : type
-    ));
-    setEditingLetterType(null);
-    toast.success('Letter type updated successfully');
+    try {
+      const updatedLetterType = await apiService.updateLetterType(editingLetterType._id, {
+        name: editingLetterType.name,
+        categoryId: editingLetterType.categoryId,
+        description: editingLetterType.description,
+        isActive: editingLetterType.isActive
+      });
+      
+      setLetterTypes(letterTypes.map(type => 
+        type._id === editingLetterType._id ? updatedLetterType : type
+      ));
+      setEditingLetterType(null);
+      toast.success('Letter type updated successfully');
+    } catch (error) {
+      toast.error('Failed to update letter type');
+    }
   };
 
   // Document Management
-  const handleApproveDocument = async (id: string) => {
-    const updatedDocuments = documents.map(doc => 
-      doc.id === id ? { ...doc, status: 'Approved' as const } : doc
-    );
-    setDocuments(updatedDocuments);
-    toast.success('Document approved successfully');
+  const handleApproveDocument = async (_id: string) => {
+    try {
+      const updatedDocument = await apiService.approveDocument(_id);
+      setDocuments(documents.map(doc => 
+        doc._id === _id ? updatedDocument : doc
+      ));
+      toast.success('Document approved successfully');
+    } catch (error) {
+      toast.error('Failed to approve document');
+    }
   };
 
-  const handleRejectDocument = async (id: string) => {
-    const updatedDocuments = documents.map(doc => 
-      doc.id === id ? { ...doc, status: 'Rejected' as const } : doc
-    );
-    setDocuments(updatedDocuments);
-    toast.success('Document rejected');
+  const handleRejectDocument = async (_id: string) => {
+    try {
+      const updatedDocument = await apiService.rejectDocument(_id, 'Rejected by admin');
+      setDocuments(documents.map(doc => 
+        doc._id === _id ? updatedDocument : doc
+      ));
+      toast.success('Document rejected');
+    } catch (error) {
+      toast.error('Failed to reject document');
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -202,7 +270,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center space-x-2">
           <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-          <span className="text-lg">Loading dashboard data...</span>
+          <span className="text-lg">Loading data...</span>
         </div>
       </div>
     );
@@ -220,7 +288,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-                <p className="text-muted-foreground">Complete system management for Letter Guard</p>
+                <p className="text-muted-foreground">Complete system management</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -230,7 +298,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
               <ThemeToggle />
               <Button onClick={onLogout} variant="outline" className="flex items-center gap-2">
                 <LogOut className="w-4 h-4" />
-                Back to Home
+                Logout
               </Button>
             </div>
           </div>
@@ -246,7 +314,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 <div>
                   <p className="text-blue-100 text-sm font-medium mb-1">Total Documents</p>
                   <p className="text-3xl font-bold">{documents.length}</p>
-                  <p className="text-blue-200 text-xs mt-2">All documents in system</p>
+                  <p className="text-blue-200 text-xs mt-2">+12% from last month</p>
                 </div>
                 <div className="p-3 bg-blue-400/30 rounded-lg">
                   <FileText className="w-8 h-8" />
@@ -289,12 +357,12 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium mb-1">Approved Documents</p>
-                  <p className="text-3xl font-bold">{documents.filter(d => d.status === 'Approved').length}</p>
-                  <p className="text-purple-200 text-xs mt-2">Successfully processed</p>
+                  <p className="text-purple-100 text-sm font-medium mb-1">Pending Approval</p>
+                  <p className="text-3xl font-bold">{documents.filter(d => d.status === 'Pending').length}</p>
+                  <p className="text-purple-200 text-xs mt-2">Requires attention</p>
                 </div>
                 <div className="p-3 bg-purple-400/30 rounded-lg">
-                  <CheckCircle className="w-8 h-8" />
+                  <Clock className="w-8 h-8" />
                 </div>
               </div>
             </CardContent>
@@ -343,12 +411,12 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 <CardContent>
                   <div className="space-y-4">
                     {documents.slice(-3).reverse().map((doc) => (
-                      <div key={doc.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                      <div key={doc._id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                         {getStatusIcon(doc.status)}
                         <div className="flex-1">
-                          <p className="font-medium text-sm">{doc.subject}</p>
+                          <p className="font-medium text-sm">{doc.title}</p>
                           <p className="text-xs text-gray-500">
-                            {doc.issuedTo} • {doc.issuedDate}
+                            {staff.find(s => s._id === doc.createdBy)?.name} • {doc.issueDate}
                           </p>
                         </div>
                         <Badge className={getStatusColor(doc.status)}>
@@ -378,7 +446,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Most Used Category</span>
-                      <span className="font-semibold">Employment Letters</span>
+                      <span className="font-semibold">Official Letters</span>
                     </div>
                   </div>
                 </CardContent>
@@ -434,15 +502,15 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </TableHeader>
                     <TableBody>
                       {categories.map((category) => (
-                        <TableRow key={category.id}>
+                        <TableRow key={category._id}>
                           <TableCell className="font-medium">{category.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono">{category.prefix}</Badge>
                           </TableCell>
                           <TableCell>
-                            {letterTypes.filter(lt => lt.category_id === category.id).length} types
+                            {letterTypes.filter(lt => lt.categoryId === category._id).length} types
                           </TableCell>
-                          <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button
@@ -455,7 +523,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeleteCategory(category.id)}
+                                onClick={() => handleDeleteCategory(category._id)}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -530,16 +598,16 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </TableHeader>
                     <TableBody>
                       {staff.map((member) => (
-                        <TableRow key={member.id}>
+                        <TableRow key={member._id}>
                           <TableCell className="font-medium">{member.name}</TableCell>
                           <TableCell>{member.email}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">{member.role}</Badge>
                           </TableCell>
                           <TableCell>
-                            {documents.filter(d => d.issuedBy === member.name).length}
+                            {documents.filter(d => d.createdBy === member._id).length}
                           </TableCell>
-                          <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(member.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button
@@ -552,7 +620,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeleteStaff(member.id)}
+                                onClick={() => handleDeleteStaff(member._id)}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -587,15 +655,15 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   <div>
                     <Label htmlFor="letter-type-category">Category</Label>
                     <Select
-                      value={newLetterType.category_id}
-                      onValueChange={(value) => setNewLetterType({ ...newLetterType, category_id: value })}
+                      value={newLetterType.categoryId}
+                      onValueChange={(value) => setNewLetterType({ ...newLetterType, categoryId: value })}
                     >
                       <SelectTrigger className="h-11 mt-1">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
+                          <SelectItem key={category._id} value={category._id}>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">{category.prefix}</Badge>
                               {category.name}
@@ -626,17 +694,17 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </TableHeader>
                     <TableBody>
                       {letterTypes.map((letterType) => (
-                        <TableRow key={letterType.id}>
+                        <TableRow key={letterType._id}>
                           <TableCell className="font-medium">{letterType.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {categories.find(cat => cat.id === letterType.category_id)?.name || 'Unknown'}
+                              {categories.find(cat => cat._id === letterType.categoryId)?.name || 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {documents.filter(d => d.letterType === letterType.name).length}
+                            {documents.filter(d => d.letterTypeId === letterType._id).length}
                           </TableCell>
-                          <TableCell>{new Date(letterType.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(letterType.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button
@@ -649,7 +717,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeleteLetterType(letterType.id)}
+                                onClick={() => handleDeleteLetterType(letterType._id)}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -674,25 +742,28 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Title</TableHead>
                         <TableHead>Letter Number</TableHead>
-                        <TableHead>Issued To</TableHead>
                         <TableHead>Category</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Issue Date</TableHead>
+                        <TableHead>Created By</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {documents.map((document) => (
-                        <TableRow key={document.id}>
+                        <TableRow key={document._id}>
+                          <TableCell className="font-medium">{document.title}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono">{document.letterNumber}</Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{document.issuedTo}</TableCell>
-                          <TableCell>{document.letterCategory}</TableCell>
-                          <TableCell>{document.subject}</TableCell>
-                          <TableCell>{document.issuedDate}</TableCell>
+                          <TableCell>
+                            {categories.find(cat => cat._id === document.categoryId)?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {staff.find(member => member._id === document.createdBy)?.name || 'Unknown'}
+                          </TableCell>
                           <TableCell>
                             <Badge 
                               className={
@@ -706,6 +777,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <span className="ml-1">{document.status}</span>
                             </Badge>
                           </TableCell>
+                          <TableCell>{document.issueDate}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button variant="outline" size="sm">
@@ -735,9 +807,9 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Title</TableHead>
                         <TableHead>Letter Number</TableHead>
-                        <TableHead>Issued To</TableHead>
-                        <TableHead>Subject</TableHead>
+                        <TableHead>Created By</TableHead>
                         <TableHead>Submitted</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
@@ -745,13 +817,15 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </TableHeader>
                     <TableBody>
                       {documents.filter(doc => doc.status === 'Pending' || doc.status === 'Draft').map((document) => (
-                        <TableRow key={document.id}>
+                        <TableRow key={document._id}>
+                          <TableCell className="font-medium">{document.title}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono">{document.letterNumber}</Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{document.issuedTo}</TableCell>
-                          <TableCell>{document.subject}</TableCell>
-                          <TableCell>{document.issuedDate}</TableCell>
+                          <TableCell>
+                            {staff.find(member => member._id === document.createdBy)?.name || 'Unknown'}
+                          </TableCell>
+                          <TableCell>{new Date(document.createdAt || '').toLocaleDateString()}</TableCell>
                           <TableCell>
                             <Badge 
                               className={
@@ -767,7 +841,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <Button
                                 size="sm"
                                 className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleApproveDocument(document.id)}
+                                onClick={() => handleApproveDocument(document._id!)}
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Approve
@@ -775,7 +849,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleRejectDocument(document.id)}
+                                onClick={() => handleRejectDocument(document._id!)}
                               >
                                 <XCircle className="w-4 h-4 mr-1" />
                                 Reject
@@ -837,10 +911,10 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 <CardContent>
                   <div className="space-y-4">
                     {categories.map((category) => {
-                      const count = documents.filter(doc => doc.letterCategory === category.name).length;
+                      const count = documents.filter(doc => doc.categoryId === category._id).length;
                       const percentage = documents.length > 0 ? (count / documents.length) * 100 : 0;
                       return (
-                        <div key={category.id} className="space-y-2">
+                        <div key={category._id} className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">{category.prefix}</Badge>
@@ -957,15 +1031,15 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
               <div>
                 <Label htmlFor="edit-letter-type-category">Category</Label>
                 <Select
-                  value={editingLetterType.category_id}
-                  onValueChange={(value) => setEditingLetterType({ ...editingLetterType, category_id: value })}
+                  value={editingLetterType.categoryId}
+                  onValueChange={(value) => setEditingLetterType({ ...editingLetterType, categoryId: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                      <SelectItem key={category._id} value={category._id}>
                         {category.name}
                       </SelectItem>
                     ))}

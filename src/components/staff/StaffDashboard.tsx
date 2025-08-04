@@ -1,8 +1,8 @@
 
-import { AuthenticatedStaffDashboard } from './AuthenticatedStaffDashboard';
+import NewStaffDashboard from './NewStaffDashboard';
 
 const StaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
-  return <AuthenticatedStaffDashboard />;
+  return <NewStaffDashboard onLogout={onLogout} />;
 };
 
 export default StaffDashboard;

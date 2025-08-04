@@ -1,117 +1,154 @@
+import { google } from 'googleapis';
+import { JWT } from 'google-auth-library';
+import { Document } from '@/types';
 
-// API service for MongoDB backend
-import { Category, Staff, LetterType, Document } from '@/types';
-import { apiService } from './apiService';
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-export interface SheetData {
-  categories: Category[];
-  staff: Staff[];
-  letterTypes: LetterType[];
-  documents: Document[];
+class GoogleSheetsService {
+  private sheets: any;
+
+  constructor() {
+    if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY || !SHEET_ID) {
+      console.warn('Google Sheets integration is not properly configured. Ensure GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_SHEET_ID are set in your environment variables.');
+      this.sheets = null;
+      return;
+    }
+
+    const jwtClient = new google.auth.JWT({
+      email: GOOGLE_CLIENT_EMAIL,
+      key: GOOGLE_PRIVATE_KEY,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    this.sheets = google.sheets({ version: 'v4', auth: jwtClient });
+  }
+
+  private async appendToSheet(values: any) {
+    if (!this.sheets || !SHEET_ID) {
+      console.warn('Google Sheets service is not initialized or SHEET_ID is missing.');
+      return;
+    }
+
+    try {
+      const request = {
+        spreadsheetId: SHEET_ID,
+        range: 'Sheet1',
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        resource: {
+          values: values
+        },
+        auth: this.sheets.auth,
+      };
+
+      const response = await this.sheets.spreadsheets.values.append(request);
+      console.log('Google Sheets API Response:', response.data);
+    } catch (error: any) {
+      console.error('Error appending to Google Sheets:', error);
+      throw error;
+    }
+  }
+
+  async uploadDocument(document: Document): Promise<void> {
+    try {
+      const values = [
+        [
+          document._id || '',
+          document.title,
+          document.categoryId,
+          document.letterTypeId,
+          document.letterNumber,
+          document.referenceNumber,
+          new Date(document.issueDate).toLocaleDateString(),
+          document.content,
+          document.status,
+          document.createdBy || '',
+          new Date(document.createdAt || Date.now()).toLocaleDateString()
+        ]
+      ];
+
+      await this.appendToSheet(values);
+    } catch (error) {
+      console.error('Error uploading document to Google Sheets:', error);
+      throw error;
+    }
+  }
+
+  async updateDocument(document: Document): Promise<void> {
+    if (!this.sheets || !SHEET_ID) {
+      console.warn('Google Sheets service is not initialized or SHEET_ID is missing.');
+      return;
+    }
+
+    try {
+      // First, find the row by matching the document ID
+      const getValuesRequest = {
+        spreadsheetId: SHEET_ID,
+        range: 'Sheet1', // Specify the sheet name
+        auth: this.sheets.auth,
+      };
+
+      const response = await this.sheets.spreadsheets.values.get(getValuesRequest);
+      const rows = response.data.values;
+
+      if (!rows) {
+        console.log('No data found in the Google Sheet.');
+        return;
+      }
+
+      let rowIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][0] === document._id) { // Assuming document ID is in the first column
+          rowIndex = i;
+          break;
+        }
+      }
+
+      if (rowIndex === -1) {
+        console.log(`Document with ID ${document._id} not found in Google Sheet.`);
+        return;
+      }
+
+      // Row index is 0-based, but Google Sheets API is 1-based, and the header row also counts
+      const sheetRowIndex = rowIndex + 1;
+      const range = `Sheet1!A${sheetRowIndex}:K${sheetRowIndex}`; // Adjust the range based on the number of columns
+
+      const values = [
+        [
+          document._id || '',
+          document.title,
+          document.categoryId,
+          document.letterTypeId,
+          document.letterNumber,
+          document.referenceNumber,
+          new Date(document.issueDate).toLocaleDateString(),
+          document.content,
+          document.status,
+          document.createdBy || '',
+          new Date(document.createdAt || Date.now()).toLocaleDateString()
+        ]
+      ];
+
+      const updateRequest = {
+        spreadsheetId: SHEET_ID,
+        range: range,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: values
+        },
+        auth: this.sheets.auth,
+      };
+
+      const updateResponse = await this.sheets.spreadsheets.values.update(updateRequest);
+      console.log('Google Sheets API Update Response:', updateResponse.data);
+
+    } catch (error) {
+      console.error('Error updating document in Google Sheets:', error);
+      throw error;
+    }
+  }
 }
 
-class BackendService {
-  async fetchSheetData(): Promise<SheetData> {
-    try {
-      const [categories, letterTypes, documents, staff] = await Promise.all([
-        apiService.getCategories(),
-        apiService.getLetterTypes(),
-        apiService.getDocuments(),
-        apiService.getStaff()
-      ]);
-
-      // Transform backend data to match frontend interface
-      const transformedCategories = categories.map((cat: any) => ({
-        id: cat._id,
-        name: cat.name,
-        prefix: cat.prefix,
-        created_at: cat.createdAt
-      }));
-
-      const transformedLetterTypes = letterTypes.map((type: any) => ({
-        id: type._id,
-        name: type.name,
-        category_id: type.categoryId._id,
-        created_at: type.createdAt
-      }));
-
-      const transformedDocuments = documents.map((doc: any) => ({
-        id: doc._id,
-        title: doc.title,
-        category_id: doc.categoryId._id,
-        letter_type_id: doc.letterTypeId._id,
-        letter_number: doc.letterNumber,
-        reference_number: doc.referenceNumber,
-        issue_date: doc.issueDate.split('T')[0],
-        content: doc.content,
-        status: doc.status as 'Draft' | 'Pending' | 'Approved' | 'Rejected',
-        created_by: doc.createdBy._id,
-        created_at: doc.createdAt,
-        updated_at: doc.updatedAt
-      }));
-
-      const transformedStaff = staff.map((member: any) => ({
-        id: member._id,
-        name: member.name,
-        email: member.email,
-        role: member.role,
-        created_at: member.createdAt
-      }));
-
-      return {
-        categories: transformedCategories,
-        staff: transformedStaff,
-        letterTypes: transformedLetterTypes,
-        documents: transformedDocuments
-      };
-    } catch (error) {
-      console.error('Failed to fetch data from backend:', error);
-      throw error;
-    }
-  }
-
-  async updateSheetData(data: Partial<SheetData>): Promise<void> {
-    try {
-      // This method is no longer needed as individual API calls handle updates
-      console.log('Data updated successfully');
-    } catch (error) {
-      console.error('Failed to update data:', error);
-      throw error;
-    }
-  }
-
-  async createDocument(documentData: any): Promise<Document> {
-    try {
-      const response = await apiService.createDocument({
-        title: documentData.title,
-        categoryId: documentData.category_id,
-        letterTypeId: documentData.letter_type_id,
-        letterNumber: documentData.letter_number,
-        referenceNumber: documentData.reference_number,
-        issueDate: documentData.issue_date,
-        content: documentData.content,
-        status: documentData.status
-      });
-
-      return {
-        id: response._id,
-        title: response.title,
-        category_id: response.categoryId,
-        letter_type_id: response.letterTypeId,
-        letter_number: response.letterNumber,
-        reference_number: response.referenceNumber,
-        issue_date: response.issueDate.split('T')[0],
-        content: response.content,
-        status: response.status,
-        created_by: response.createdBy,
-        created_at: response.createdAt,
-        updated_at: response.updatedAt
-      };
-    } catch (error) {
-      console.error('Failed to create document:', error);
-      throw error;
-    }
-  }
-}
-
-export const googleSheetsService = new BackendService();
+export const googleSheetsService = new GoogleSheetsService();

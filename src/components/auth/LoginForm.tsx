@@ -1,13 +1,13 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, UserCheck, Users } from "lucide-react";
+import { Shield, Users } from "lucide-react";
 
 interface LoginFormProps {
-  onLogin: (role: string, credentials: any) => void;
+  onLogin: (role: string, credentials: any) => Promise<void>;
   allowedRoles?: string[];
 }
 
@@ -15,50 +15,54 @@ export function LoginForm({ onLogin, allowedRoles }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role && email && password) {
-      onLogin(role, { email, password });
+    if (!email || !password) return;
+
+    setIsLoading(true);
+    try {
+      await onLogin(role || 'staff', { email, password });
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const filteredRoles = allowedRoles || ["admin", "staff"];
 
-  const roleIcons = {
-    admin: Shield,
-    staff: Users,
-    verification: UserCheck,
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="role">Access Level</Label>
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select your role" />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredRoles.includes("admin") && (
-              <SelectItem value="admin">
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Administrator
-                </div>
-              </SelectItem>
-            )}
-            {filteredRoles.includes("staff") && (
-              <SelectItem value="staff">
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Staff Member
-                </div>
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
+      {filteredRoles.length > 1 && (
+        <div className="space-y-2">
+          <Label htmlFor="role">Access Level</Label>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select your role" />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredRoles.includes("admin") && (
+                <SelectItem value="admin">
+                  <div className="flex items-center">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Administrator
+                  </div>
+                </SelectItem>
+              )}
+              {filteredRoles.includes("staff") && (
+                <SelectItem value="staff">
+                  <div className="flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Staff Member
+                  </div>
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
@@ -87,9 +91,9 @@ export function LoginForm({ onLogin, allowedRoles }: LoginFormProps) {
       <Button 
         type="submit" 
         className="w-full" 
-        disabled={!role || !email || !password}
+        disabled={!email || !password || isLoading}
       >
-        Login to {role ? role.charAt(0).toUpperCase() + role.slice(1) : 'System'}
+        {isLoading ? 'Logging in...' : 'Login'}
       </Button>
 
       {/* Demo Credentials */}

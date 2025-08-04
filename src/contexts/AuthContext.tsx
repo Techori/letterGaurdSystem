@@ -1,5 +1,5 @@
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiService } from '@/services/apiService';
 import { toast } from 'sonner';
 
@@ -20,67 +20,60 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    checkAuthStatus();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
+  const checkAuthStatus = async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
         const userData = await apiService.getCurrentUser();
         setUser(userData);
+      } catch (error) {
+        localStorage.removeItem('token');
+        console.error('Auth check failed:', error);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
       const response = await apiService.login(email, password);
       setUser(response.user);
-      toast.success('Login successful!');
+      toast.success('Logged in successfully');
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = () => {
     apiService.logout();
-    localStorage.removeItem('token');
     setUser(null);
     toast.success('Logged out successfully');
   };
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      isLoading,
-      login,
-      logout,
-      isAuthenticated: !!user
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const value = {
+    user,
+    isLoading,
+    login,
+    logout,
+    isAuthenticated: !!user,
+  };
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

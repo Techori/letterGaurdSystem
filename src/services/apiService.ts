@@ -1,21 +1,20 @@
+
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? import.meta.env.VITE_API_BASE_URL || "https://lettergaurdsystem.onrender.com/api"
   : 'http://localhost:5000/api';
 
-  class ApiService {
+class ApiService {
   private token: string | null = null;
 
   constructor() {
     this.token = localStorage.getItem('token');
   }
 
-  private getHeaders(isMultipart: boolean = false) {
-    return isMultipart
-      ? { ...(this.token && { Authorization: `Bearer ${this.token}` }) }
-      : {
-          'Content-Type': 'application/json',
-          ...(this.token && { Authorization: `Bearer ${this.token}` })
-        };
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      ...(this.token && { Authorization: `Bearer ${this.token}` })
+    };
   }
 
   // Auth methods
@@ -56,19 +55,11 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   }
 
   async getCurrentUser() {
-    if (!this.token) {
-      throw new Error('No token available');
-    }
-    
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: this.getHeaders()
     });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        this.logout();
-        throw new Error('Token expired or invalid');
-      }
       throw new Error('Failed to get user');
     }
     
@@ -115,21 +106,6 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
     return response.json();
   }
 
-  async bulkCreateDocuments(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/documents/bulk`, {
-      method: 'POST',
-      headers: this.getHeaders(true),
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create documents from Excel');
-    }
-    
-    return response.json();
-  }
-
   async updateDocument(id: string, documentData: any) {
     const response = await fetch(`${API_BASE_URL}/documents/${id}`, {
       method: 'PUT',
@@ -169,6 +145,15 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
     }
     
     return response.json();
+  }
+
+  // Document approval methods
+  async approveDocument(documentId: string) {
+    return this.updateDocumentStatus(documentId, 'Approved');
+  }
+
+  async rejectDocument(documentId: string, reason?: string) {
+    return this.updateDocumentStatus(documentId, 'Rejected', reason);
   }
 
   // Category methods
@@ -301,6 +286,50 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
     
     if (!response.ok) {
       throw new Error('Failed to fetch staff');
+    }
+    
+    return response.json();
+  }
+
+  async createStaff(staffData: any) {
+    // Note: Staff creation is typically done through registration
+    // This method can be used for admin-created staff accounts
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ ...staffData, role: staffData.role || 'staff' })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create staff member');
+    }
+    
+    return response.json();
+  }
+
+  async updateStaff(id: string, staffData: any) {
+    const response = await fetch(`${API_BASE_URL}/staff/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(staffData)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to update staff member');
+    }
+    
+    return response.json();
+  }
+
+  async deleteStaff(id: string) {
+    const response = await fetch(`${API_BASE_URL}/staff/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to delete staff member');
     }
     
     return response.json();

@@ -1,8 +1,8 @@
 
-import { AuthenticatedAdminDashboard } from './AuthenticatedAdminDashboard';
+import NewAdminDashboard from './NewAdminDashboard';
 
 const EnhancedAdminPanel = ({ onLogout }: { onLogout: () => void }) => {
-  return <AuthenticatedAdminDashboard />;
+  return <NewAdminDashboard onLogout={onLogout} />;
 };
 
 export default EnhancedAdminPanel;

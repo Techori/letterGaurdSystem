@@ -1,46 +1,62 @@
 
 export interface Category {
-  id: string;
+  _id: string;
   name: string;
   prefix: string;
-  created_at: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Staff {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: string;
-  created_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LetterType {
-  id: string;
+  _id: string;
   name: string;
-  category_id: string;
-  created_at: string;
+  categoryId: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Document {
-  id: string;
+  _id?: string;
   title: string;
-  category_id: string;
-  letter_type_id: string;
-  letter_number: string;
-  reference_number: string;
-  issue_date: string;
+  categoryId: string;
+  letterTypeId: string;
+  letterNumber: string;
+  referenceNumber: string;
+  issueDate: string;
   content: string;
-  file_path?: string;
+  filePath?: string;
   status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  createdBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
-  id: string;
+  _id: string;
   email: string;
   role: 'admin' | 'staff' | 'user';
   name: string;
-  created_at: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiError {
+  message: string;
+  errors?: string[];
 }
