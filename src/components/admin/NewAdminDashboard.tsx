@@ -43,10 +43,8 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       
       setCategories(categoriesData);
       setStaff(staffData);
-      console.log(staffData)
       setLetterTypes(letterTypesData);
       setDocuments(documentsData);
-      console.log("docs:",documents)
       toast.success('Data loaded successfully');
     } catch (error) {
       toast.error('Failed to load data');

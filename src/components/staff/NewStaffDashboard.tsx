@@ -97,10 +97,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
       
       const letterTypesData= await apiService.getLetterTypes();
 
-      console.log(letterTypesData)
-      setLetterTypes(letterTypesData);
-      console.log("letter types:",letterTypesData)
-  
+      setLetterTypes(letterTypesData);  
       toast.success('letter types loaded successfully');
     } catch (error) {
       console.error('Error loading data:', error);
