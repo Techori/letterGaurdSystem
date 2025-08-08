@@ -21,7 +21,11 @@ export interface Staff {
 export interface LetterType {
   _id: string;
   name: string;
-  categoryId: string;
+  categoryId:{
+    _id:String,
+    name:String,
+    prefix:String
+  }
   description?: string;
   isActive: boolean;
   createdAt: string;
@@ -31,7 +35,11 @@ export interface LetterType {
 export interface Document {
   _id?: string;
   title: string;
-  categoryId: string;
+  categoryId: {
+    _id:String,
+    name:String,
+    prefix:String
+  };
   letterTypeId: string;
   letterNumber: string;
   referenceNumber: string;
@@ -39,7 +47,11 @@ export interface Document {
   content: string;
   filePath?: string;
   status: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
-  createdBy?: string;
+  createdBy?:{
+    name:String,
+    email:String,
+    _id:String
+  }
   approvedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;

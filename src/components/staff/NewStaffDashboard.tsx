@@ -24,7 +24,11 @@ interface Category {
 interface LetterType {
   _id: string;
   name: string;
-  categoryId: string;
+  categoryId:{
+    _id:String,
+    name:String,
+    prefix:String
+  };
   description?: string;
   isActive: boolean;
 }
@@ -93,9 +97,9 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
       
       const letterTypesData= await apiService.getLetterTypes();
 
-      console.log(letterTypes)
+      console.log(letterTypesData)
       setLetterTypes(letterTypesData);
-      console.log("letter types:",letterTypes)
+      console.log("letter types:",letterTypesData)
   
       toast.success('letter types loaded successfully');
     } catch (error) {
@@ -111,7 +115,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
     if (category) {
       const year = new Date().getFullYear();
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      return `${category.prefix}/${year}/${random}`;
+      return `${category.prefix}/${year}-${year+1}/${random}`;
     }
     return '';
   };
@@ -343,16 +347,16 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                 <div className="space-y-2">
                     <Label className="text-sm font-semibold text-foreground">
                       Letter Type *
                     </Label>
-                    <Select onValueChange={setLetterTypeId} value={letterTypeId} disabled={isSubmitting}>
+                    <Select onValueChange={setLetterTypeId} value={letterTypeId}>
                       <SelectTrigger className="h-11 bg-background">
                         <SelectValue placeholder="Select letter type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {letterTypes.filter(type => type.categoryId === categoryId).map((type) => (
+                        {letterTypes.filter(type => type.categoryId._id === categoryId).map((type) => (
                           <SelectItem key={type._id} value={type._id}>
                             {type.name}
                           </SelectItem>

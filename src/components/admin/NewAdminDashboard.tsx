@@ -43,8 +43,10 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       
       setCategories(categoriesData);
       setStaff(staffData);
+      console.log(staffData)
       setLetterTypes(letterTypesData);
       setDocuments(documentsData);
+      console.log("docs:",documents)
       toast.success('Data loaded successfully');
     } catch (error) {
       toast.error('Failed to load data');
@@ -127,7 +129,8 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       const staffMember = await apiService.createStaff({
         name: newStaff.name,
         email: newStaff.email,
-        role: newStaff.role
+        role: newStaff.role,
+        password:`${(newStaff.name.slice(0,3))}1234`
       });
       
       setStaff([...staff, staffMember]);
@@ -410,13 +413,13 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {documents.slice(-3).reverse().map((doc) => (
+                    {documents.slice(0,5).map((doc) => (
                       <div key={doc._id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                         {getStatusIcon(doc.status)}
                         <div className="flex-1">
                           <p className="font-medium text-sm">{doc.title}</p>
                           <p className="text-xs text-gray-500">
-                            {staff.find(s => s._id === doc.createdBy)?.name} • {doc.issueDate}
+                            {staff.find(s => s._id === doc.createdBy._id)?.name} • {doc.issueDate}
                           </p>
                         </div>
                         <Badge className={getStatusColor(doc.status)}>
@@ -698,7 +701,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                           <TableCell className="font-medium">{letterType.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {categories.find(cat => cat._id === letterType.categoryId)?.name || 'Unknown'}
+                              {categories.find(cat => cat._id === letterType.categoryId._id)?.name || 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -759,10 +762,11 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                             <Badge variant="outline" className="font-mono">{document.letterNumber}</Badge>
                           </TableCell>
                           <TableCell>
-                            {categories.find(cat => cat._id === document.categoryId)?.name || 'N/A'}
+                            {categories.find(cat => cat._id === document.categoryId._id)?.name || 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {staff.find(member => member._id === document.createdBy)?.name || 'Unknown'}
+                            {staff.find(member => member._id === document.createdBy._id)?.name || "N/A name"}<br/>
+                            {staff.find(member => member._id === document.createdBy._id)?.email || "N/A email"}
                           </TableCell>
                           <TableCell>
                             <Badge 
@@ -816,14 +820,14 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {documents.filter(doc => doc.status === 'Pending' || doc.status === 'Draft').map((document) => (
+                      {documents.filter(doc => doc.status === 'Pending' ).map((document) => (
                         <TableRow key={document._id}>
                           <TableCell className="font-medium">{document.title}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono">{document.letterNumber}</Badge>
                           </TableCell>
                           <TableCell>
-                            {staff.find(member => member._id === document.createdBy)?.name || 'Unknown'}
+                            {staff.find(member => member._id === document.createdBy._id)?.name || 'Unknown'}
                           </TableCell>
                           <TableCell>{new Date(document.createdAt || '').toLocaleDateString()}</TableCell>
                           <TableCell>
@@ -911,7 +915,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 <CardContent>
                   <div className="space-y-4">
                     {categories.map((category) => {
-                      const count = documents.filter(doc => doc.categoryId === category._id).length;
+                      const count = documents.filter(doc => doc.categoryId._id === category._id).length;
                       const percentage = documents.length > 0 ? (count / documents.length) * 100 : 0;
                       return (
                         <div key={category._id} className="space-y-2">
@@ -1031,7 +1035,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
               <div>
                 <Label htmlFor="edit-letter-type-category">Category</Label>
                 <Select
-                  value={editingLetterType.categoryId}
+                  value={editingLetterType.categoryId._id}
                   onValueChange={(value) => setEditingLetterType({ ...editingLetterType, categoryId: value })}
                 >
                   <SelectTrigger>
