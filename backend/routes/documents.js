@@ -101,11 +101,13 @@ router.post('/', auth, validateDocument, async (req, res) => {
   try {
     const { title, categoryId, letterTypeId, letterNumber, referenceNumber, issueDate, content, status } = req.body;
 
+     console.log("checkpoint 1")
     // Validate that category exists
     const category = await Category.findById(categoryId);
     if (!category) {
       return res.status(400).json({ message: 'Invalid category ID' });
     }
+   
 
     // Validate that letter type exists and belongs to the category
     const letterType = await LetterType.findById(letterTypeId);
@@ -149,7 +151,7 @@ router.post('/', auth, validateDocument, async (req, res) => {
     console.log('Document created:', document._id);
     res.status(201).json(document);
   } catch (error) {
-    console.error('Error creating document:', error);
+    console.log('Error creating document:', error);
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({ message: 'Validation error', errors });

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { FileText, Plus, Calendar, User, Building, Hash, Clock, LogOut, Send, Sa
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { apiService } from '@/services/apiService';
+import ExcelUpload from './ExcelUpload';
 
 interface Category {
   _id: string;
@@ -91,11 +91,11 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
     }
   };
 
-   const loadLetterTypes = async () => {
+  const loadLetterTypes = async () => {
     try {
       setIsLoading(true);
       
-      const letterTypesData= await apiService.getLetterTypes();
+      const letterTypesData = await apiService.getLetterTypes();
 
       setLetterTypes(letterTypesData);  
       toast.success('letter types loaded successfully');
@@ -295,6 +295,15 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
           </Card>
         </div>
 
+        {/* Excel Upload Section */}
+        <div className="mb-8">
+          <ExcelUpload 
+            categories={categories} 
+            letterTypes={letterTypes} 
+            onDocumentsCreated={loadData}
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Document Creation Form */}
           <div className="lg:col-span-2">
@@ -302,7 +311,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
               <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Plus className="w-5 h-5 text-primary" />
-                  Create New Document
+                  Create Single Document
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
@@ -344,7 +353,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                     </Select>
                   </div>
 
-                 <div className="space-y-2">
+                  <div className="space-y-2">
                     <Label className="text-sm font-semibold text-foreground">
                       Letter Type *
                     </Label>
@@ -522,7 +531,7 @@ const NewStaffDashboard = ({ onLogout }: { onLogout: () => void }) => {
                           <Badge variant="outline" className="font-mono">{doc.letterNumber}</Badge>
                         </TableCell>
                         <TableCell>
-                          {categories.find(cat => cat._id === doc.categoryId)?.name || 'N/A'}
+                          {categories.find(cat => cat._id === doc.categoryId._id)?.name || 'N/A'}
                         </TableCell>
                         <TableCell>{doc.issueDate}</TableCell>
                         <TableCell>
