@@ -371,7 +371,7 @@ const ExcelUpload: React.FC<ExcelUploadProps> = ({ categories, letterTypes, onDo
           referenceNumber: finalReferenceNumber,
           issueDate: doc.issueDate,
           content: doc.content,
-          status: 'Draft'
+          status: 'Pending'
         };
 
         await apiService.createDocument(documentData);
