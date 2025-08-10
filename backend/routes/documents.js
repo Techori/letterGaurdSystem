@@ -101,7 +101,6 @@ router.post('/', auth, validateDocument, async (req, res) => {
   try {
     const { title, categoryId, letterTypeId, letterNumber, referenceNumber, issueDate, content, status } = req.body;
 
-     console.log("checkpoint 1")
     // Validate that category exists
     const category = await Category.findById(categoryId);
     if (!category) {

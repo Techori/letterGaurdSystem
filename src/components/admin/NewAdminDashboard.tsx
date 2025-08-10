@@ -12,12 +12,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { 
   Plus, Trash2, Edit, FileText, Users, Tag, Settings, BarChart3, 
   LogOut, Shield, TrendingUp, Clock, CheckCircle, XCircle, AlertCircle,
-  Building, Hash, Calendar, RefreshCw
+  Building, Hash, Calendar, RefreshCw,Save,Send
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { apiService } from '@/services/apiService';
 import { Category, Staff, LetterType, Document } from '@/types';
+import ExcelUpload from './ExcelUpload';
 
 const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +47,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       setStaff(staffData);
       setLetterTypes(letterTypesData);
       setDocuments(documentsData);
+      console.log("Docs:",documents)
       toast.success('Data loaded successfully');
     } catch (error) {
       toast.error('Failed to load data');
@@ -62,6 +65,14 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [editingLetterType, setEditingLetterType] = useState<LetterType | null>(null);
 
+   const [title, setTitle] = useState('');
+    const [categoryId, setCategoryId] = useState('');
+    const [letterTypeId, setLetterTypeId] = useState('');
+    const [letterNumber, setLetterNumber] = useState('');
+    const [referenceNumber, setReferenceNumber] = useState('');
+    const [issueDate, setIssueDate] = useState('');
+    const [content, setContent] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
   // Category Management
   const handleAddCategory = async () => {
     if (!newCategory.name || !newCategory.prefix) {
@@ -84,6 +95,93 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
       toast.error('Failed to add category');
     }
   };
+
+   const generateLetterNumber = () => {
+      const category = categories.find(cat => cat._id === categoryId);
+      if (category) {
+        const year = new Date().getFullYear();
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `${category.prefix}/${year}-${year+1}/${random}`;
+      }
+      return '';
+    };
+  
+    const generateReferenceNumber = () => {
+      const category = categories.find(cat => cat._id === categoryId);
+      if (category) {
+        const date = new Date();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+        return `REF/${category.prefix}/${month}${year}/${random}`;
+      }
+      return '';
+    };
+  
+    const validateForm = () => {
+      if (!title.trim()) {
+        toast.error('Document title is required');
+        return false;
+      }
+      if (!categoryId) {
+        toast.error('Category is required');
+        return false;
+      }
+      if (!letterTypeId) {
+        toast.error('Letter type is required');
+        return false;
+      }
+      if (!content.trim()) {
+        toast.error('Document content is required');
+        return false;
+      }
+      if (!issueDate) {
+        toast.error('Issue date is required');
+        return false;
+      }
+      return true;
+    };
+
+  const handleSubmit = async (submitStatus: 'Draft' | 'Pending' = 'Draft') => {
+      if (!validateForm()) return;
+  
+      setIsSubmitting(true);
+  
+      try {
+        const finalLetterNumber = letterNumber || generateLetterNumber();
+        const finalReferenceNumber = referenceNumber || generateReferenceNumber();
+  
+        const documentData = {
+          title: title.trim(),
+          categoryId,
+          letterTypeId,
+          letterNumber: finalLetterNumber,
+          referenceNumber: finalReferenceNumber,
+          issueDate,
+          content: content.trim(),
+          status: submitStatus,
+        };
+  
+        const newDocument = await apiService.createDocument(documentData);
+        setDocuments([newDocument, ...documents]);
+        
+        toast.success(`Document ${submitStatus === 'Draft' ? 'saved as draft' : 'submitted for approval'}!`);
+        
+        // Reset form
+        setTitle('');
+        setCategoryId('');
+        setLetterTypeId('');
+        setLetterNumber('');
+        setReferenceNumber('');
+        setIssueDate('');
+        setContent('');
+      } catch (error: any) {
+        console.error('Error creating document:', error);
+        toast.error(error.message || 'Failed to create document');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
   const handleDeleteCategory = async (_id: string) => {
     try {
@@ -372,10 +470,14 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-8 h-12 bg-white shadow-sm border">
+          <TabsList className="grid w-full grid-cols-8 mb-8 h-12 bg-white shadow-sm border">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="create-document" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Create Document
             </TabsTrigger>
             <TabsTrigger value="categories" className="flex items-center gap-2">
               <Tag className="w-4 h-4" />
@@ -428,6 +530,8 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                   </div>
                 </CardContent>
               </Card>
+              
+             
 
               <Card className="shadow-lg border-0">
                 <CardHeader>
@@ -454,6 +558,172 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
               </Card>
             </div>
           </TabsContent>
+
+           <TabsContent value="create-document" className="space-y-6">
+            {/* Excel Upload Section */}
+                    <div className="mb-8">
+                      <ExcelUpload 
+                        categories={categories} 
+                        letterTypes={letterTypes} 
+                        onDocumentsCreated={loadData}
+                      />
+                    </div>
+              <Card className="shadow-lg border-0 bg-card hover-lift">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Plus className="w-5 h-5 text-primary" />
+                  Create Single Document
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {/* Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-sm font-semibold text-foreground">
+                    Document Title *
+                  </Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter document title"
+                    className="h-11 bg-background"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Category and Letter Type */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Category *
+                    </Label>
+                    <Select onValueChange={setCategoryId} value={categoryId} disabled={isSubmitting}>
+                      <SelectTrigger className="h-11 bg-background">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category._id} value={category._id}>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{category.prefix}</Badge>
+                              {category.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Letter Type *
+                    </Label>
+                    <Select onValueChange={setLetterTypeId} value={letterTypeId}>
+                      <SelectTrigger className="h-11 bg-background">
+                        <SelectValue placeholder="Select letter type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {letterTypes.filter(type => type.categoryId._id === categoryId).map((type) => (
+                          <SelectItem key={type._id} value={type._id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Numbers and Date */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Letter Number
+                    </Label>
+                    <Input
+                      value={letterNumber}
+                      onChange={(e) => setLetterNumber(e.target.value)}
+                      placeholder="Auto-generated"
+                      className="h-11 bg-background"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Leave empty for auto-generation</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Reference Number
+                    </Label>
+                    <Input
+                      value={referenceNumber}
+                      onChange={(e) => setReferenceNumber(e.target.value)}
+                      placeholder="Auto-generated"
+                      className="h-11 bg-background"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Leave empty for auto-generation</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">
+                      Issue Date *
+                    </Label>
+                    <Input
+                      type="date"
+                      value={issueDate}
+                      onChange={(e) => setIssueDate(e.target.value)}
+                      className="h-11 bg-background"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-foreground">
+                    Document Content *
+                  </Label>
+                  <Textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Enter document content..."
+                    className="min-h-32 resize-none bg-background"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    onClick={() => handleSubmit('Draft')} 
+                    variant="outline" 
+                    className="flex-1 h-11"
+                    disabled={isSubmitting}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save as Draft
+                  </Button>
+                  <Button 
+                    onClick={() => handleSubmit('Pending')} 
+                    className="flex-1 h-11 bg-primary hover:bg-primary/90"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Submit for Approval
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            </TabsContent>
+
 
           <TabsContent value="categories" className="space-y-6">
             <Card className="shadow-lg border-0">
@@ -509,7 +779,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                             <Badge variant="outline" className="font-mono">{category.prefix}</Badge>
                           </TableCell>
                           <TableCell>
-                            {letterTypes.filter(lt => lt.categoryId === category._id).length} types
+                            {letterTypes.filter(lt => lt.categoryId._id === category._id).length} types
                           </TableCell>
                           <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
@@ -606,7 +876,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                             <Badge variant="secondary">{member.role}</Badge>
                           </TableCell>
                           <TableCell>
-                            {documents.filter(d => d.createdBy === member._id).length}
+                            {documents.filter(d => d.createdBy._id === member._id).length}
                           </TableCell>
                           <TableCell>{new Date(member.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>

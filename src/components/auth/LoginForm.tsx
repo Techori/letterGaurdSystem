@@ -96,14 +96,7 @@ export function LoginForm({ onLogin, allowedRoles }: LoginFormProps) {
         {isLoading ? 'Logging in...' : 'Login'}
       </Button>
 
-      {/* Demo Credentials */}
-      <div className="mt-4 p-3 bg-muted/50 rounded-lg border">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Demo Credentials:</p>
-        <div className="text-xs space-y-1">
-          {filteredRoles.includes("admin") && <div>Admin: admin@demo.com / admin123</div>}
-          {filteredRoles.includes("staff") && <div>Staff: staff@demo.com / staff123</div>}
-        </div>
-      </div>
+      
     </form>
   );
 }
