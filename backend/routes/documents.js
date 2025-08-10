@@ -132,6 +132,7 @@ router.post('/', auth, validateDocument, async (req, res) => {
       return res.status(400).json({ message: 'Issue date cannot be in the future' });
     }
 
+
     const document = new Document({
       title: title.trim(),
       categoryId,
@@ -140,7 +141,7 @@ router.post('/', auth, validateDocument, async (req, res) => {
       referenceNumber: referenceNumber.trim(),
       issueDate: issueDateTime,
       content: content.trim(),
-      status: status || 'Draft',
+      status: req.user.role==='admin'? 'Approved':status,
       createdBy: req.user._id
     });
 

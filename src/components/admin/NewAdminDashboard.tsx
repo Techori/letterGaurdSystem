@@ -1033,7 +1033,7 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                             {categories.find(cat => cat._id === document.categoryId._id)?.name || 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {staff.find(member => member._id === document.createdBy._id)?.name || "N/A name"}<br/>
+                            {staff.find(member => member._id === document.createdBy._id)?.name  || "N/A name"} ({staff.find(member => member._id === document.createdBy._id)?.role})<br/>
                             {staff.find(member => member._id === document.createdBy._id)?.email || "N/A email"}
                           </TableCell>
                           <TableCell>
@@ -1210,6 +1210,9 @@ const NewAdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Documents*/}
+      
 
       {/* Edit Dialogs */}
       {editingCategory && (

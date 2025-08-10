@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all staff (admin only)
 router.get('/', auth, async (req, res) => {
   try {
-    const staff = await User.find({ role: 'staff' })
+    const staff = await User.find({})
       .select('-password')
       .sort({ name: 1 });
     res.json(staff);
